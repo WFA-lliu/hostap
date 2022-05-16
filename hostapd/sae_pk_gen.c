@@ -39,9 +39,9 @@ int main(int argc, char *argv[])
 	if (os_program_init() < 0)
 		goto fail;
 
-	if (argc != 4) {
+	if (argc != 4 && argc != 5) {
 		fprintf(stderr,
-			"usage: sae_pk_gen <DER ECPrivateKey file> <Sec:3|5> <SSID>\n");
+			"usage: sae_pk_gen <DER ECPrivateKey file> <Sec:3|5> <SSID> [<rand_hex>]\n");
 		goto fail;
 	}
 
@@ -99,10 +99,26 @@ int main(int argc, char *argv[])
 	}
 	os_memcpy(data, argv[3], os_strlen(argv[3]));
 	m = data + os_strlen(argv[3]);
-	if (os_get_random(m, SAE_PK_M_LEN) < 0) {
-		fprintf(stderr, "Could not generate random Modifier M\n");
-		goto fail;
+
+	if(argc == 5)
+	{
+		if(hexstr2bin(argv[4], m, SAE_PK_M_LEN))
+		{
+			fprintf(stderr, "Could not load random Modifier M\n");
+			goto fail;
+		}
 	}
+	else
+	{
+		if (os_get_random(m, SAE_PK_M_LEN) < 0) {
+			fprintf(stderr, "Could not generate random Modifier M\n");
+			goto fail;
+		}
+	}
+	if (wpa_snprintf_hex(m_hex, sizeof(m_hex), m, SAE_PK_M_LEN) < 0)
+		goto fail;
+	printf("initial m=%s (%s)\n", m_hex, (argc == 5)?"memorized":"randomized");
+
 	os_memcpy(m + SAE_PK_M_LEN, wpabuf_head(pub), wpabuf_len(pub));
 
 	fprintf(stderr, "Searching for a suitable Modifier M value\n");
